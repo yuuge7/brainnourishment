@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Ink;
 
 import '../../application/warmup_controller.dart';
-import '../../domain/game.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -30,39 +29,43 @@ class StroopGame extends StatelessWidget {
           ),
         ),
       ),
-      Row(
-        children: [
-          for (final ink in Ink.values) ...[
-            if (ink.index > 0) const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
-                key: ValueKey('ink-${ink.name}'),
-                onPressed: controller.canAnswer
-                    ? () => controller.answerInk(ink)
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Palette.ink(ink),
-                  backgroundColor: Palette.ink(ink).withValues(alpha: .07),
-                  side: BorderSide(
-                    color: Palette.ink(ink).withValues(alpha: .45),
+      for (var row = 0; row < 2; row++) ...[
+        if (row > 0) const SizedBox(height: 10),
+        Row(
+          children: [
+            for (final ink in controller.inkChoices.skip(row * 2).take(2)) ...[
+              if (ink != controller.inkChoices[row * 2])
+                const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  key: ValueKey('ink-${ink.name}'),
+                  onPressed: controller.canAnswer
+                      ? () => controller.answerInk(ink)
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Palette.ink(ink),
+                    backgroundColor: Palette.ink(ink).withValues(alpha: .07),
+                    side: BorderSide(
+                      color: Palette.ink(ink).withValues(alpha: .45),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 14,
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 14,
-                  ),
-                ),
-                child: Text(
-                  ink.name.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                  child: Text(
+                    ink.name.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
-      ),
+        ),
+      ],
     ],
   );
 }

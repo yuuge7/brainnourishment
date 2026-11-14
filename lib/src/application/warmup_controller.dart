@@ -14,26 +14,42 @@ enum MemoryPhase { showing, recalling, feedback }
 class WarmupController extends ChangeNotifier {
   WarmupController({
     Random? random,
-    this.roundDuration = const Duration(seconds: 30),
+    this.mode = TrainingMode.daily,
+    this.difficulty = Difficulty.challenge,
+    this.practiceExercise = Exercise.focus,
+    Duration? roundDuration,
     Duration Function()? elapsed,
-  }) : assert(roundDuration > Duration.zero),
+  }) : assert(roundDuration == null || roundDuration > Duration.zero),
+       roundDuration = roundDuration ?? Duration(seconds: mode.roundSeconds),
        _random = random ?? Random(),
        _elapsedOverride = elapsed;
 
+  final TrainingMode mode;
+  final Difficulty difficulty;
+  final Exercise practiceExercise;
+
+  /// Morning rounds ramp from Standard to the selected finishing level.
+  Difficulty get roundDifficulty => mode == TrainingMode.morning
+      ? Difficulty.values[(difficulty.index - (exercises.length - 1 - _index))
+            .clamp(0, difficulty.index)]
+      : difficulty;
   final Duration roundDuration;
   final Random _random;
   final Duration Function()? _elapsedOverride;
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
   bool _disposed = false;
-  final List<GameScore> _scores = [
-    for (final exercise in Exercise.values) GameScore(exercise: exercise),
+  late final List<GameScore> _scores = [
+    for (final exercise in exercises) GameScore(exercise: exercise),
   ];
 
   WarmupPhase _phase = WarmupPhase.ready;
   WarmupPhase get phase => _phase;
   int _index = 0;
-  Exercise get exercise => Exercise.values[_index];
+  List<Exercise> get exercises =>
+      mode == TrainingMode.practice ? [practiceExercise] : mode.exercises;
+  int get roundIndex => _index;
+  Exercise get exercise => exercises[_index];
   List<GameScore> get scores => List.unmodifiable(_scores);
   GameScore get score => _scores[_index];
   int get totalPoints => _scores.fold(0, (sum, item) => sum + item.points);
@@ -55,8 +71,17 @@ class WarmupController extends ChangeNotifier {
   Duration? _nextPromptAt;
   StroopPrompt _stroop = const StroopPrompt(Ink.red, Ink.blue);
   StroopPrompt get stroop => _stroop;
-  MathPrompt _math = const MathPrompt(14, 8, false, 5);
+  List<Ink> _inkChoices = Ink.values;
+  List<Ink> get inkChoices => List.unmodifiable(_inkChoices);
+  MathPrompt _math = const MathPrompt(14, 8, MathOperation.subtraction, 5);
   MathPrompt get math => _math;
+  late SequencePrompt _sequence;
+  SequencePrompt get sequence => _sequence;
+  RulePrompt? _rulePrompt;
+  RulePrompt get rulePrompt => _rulePrompt!;
+  int get gridSide => roundDifficulty.gridSide;
+  int get memoryTileCount => roundDifficulty.memoryTiles;
+  Duration get memoryFlash => roundDifficulty.memoryFlash;
   MemoryPhase _memoryPhase = MemoryPhase.showing;
   MemoryPhase get memoryPhase => _memoryPhase;
   Set<int> _targets = {};
@@ -86,14 +111,27 @@ class WarmupController extends ChangeNotifier {
     switch (exercise) {
       case Exercise.focus:
         _stroop = StroopPrompt.generate(_random);
+        _inkChoices = Ink.values.toList();
+        if (roundDifficulty != Difficulty.standard) {
+          _inkChoices.shuffle(_random);
+        }
       case Exercise.logic:
-        _math = MathPrompt.generate(_random);
+        _math = MathPrompt.generate(_random, difficulty: roundDifficulty);
       case Exercise.memory:
-        final cells = List.generate(9, (index) => index)..shuffle(_random);
-        _targets = cells.take(3).toSet();
+        final cells = List.generate(gridSide * gridSide, (index) => index)
+          ..shuffle(_random);
+        _targets = cells.take(memoryTileCount).toSet();
         _selected.clear();
         _memoryPhase = MemoryPhase.showing;
-        _memoryDeadline = _elapsed + const Duration(seconds: 1);
+        _memoryDeadline = _elapsed + memoryFlash;
+      case Exercise.sequence:
+        _sequence = SequencePrompt.generate(_random, roundDifficulty);
+      case Exercise.switching:
+        _rulePrompt = RulePrompt.generate(
+          _random,
+          roundDifficulty,
+          previousRule: _rulePrompt?.rule,
+        );
     }
   }
 
@@ -105,6 +143,17 @@ class WarmupController extends ChangeNotifier {
   void answerMath(bool answer) {
     if (exercise != Exercise.logic || !canAnswer || !_withinTime()) return;
     _answer(answer == _math.isTrue);
+  }
+
+  void answerSequence(int answer) {
+    if (exercise != Exercise.sequence || !canAnswer || !_withinTime()) return;
+    if (!_sequence.options.contains(answer)) return;
+    _answer(answer == _sequence.answer);
+  }
+
+  void answerRule(bool first) {
+    if (exercise != Exercise.switching || !canAnswer || !_withinTime()) return;
+    _answer(first == rulePrompt.firstIsCorrect);
   }
 
   void _answer(bool correct) {
@@ -119,15 +168,18 @@ class WarmupController extends ChangeNotifier {
         !canAnswer ||
         _memoryPhase != MemoryPhase.recalling ||
         index < 0 ||
-        index > 8 ||
+        index >= gridSide * gridSide ||
         !_withinTime()) {
       return;
     }
     if (!_selected.add(index)) return;
-    if (_selected.length == 3) {
+    if (_selected.length == memoryTileCount) {
       final matches = _selected.intersection(_targets).length;
-      _scores[_index] = score.add(success: matches == 3, earned: matches * 10);
-      _feedback = matches == 3;
+      _scores[_index] = score.add(
+        success: matches == memoryTileCount,
+        earned: matches * 10,
+      );
+      _feedback = matches == memoryTileCount;
       _memoryPhase = MemoryPhase.feedback;
       _memoryDeadline = _elapsed + const Duration(milliseconds: 650);
     }
@@ -178,7 +230,7 @@ class WarmupController extends ChangeNotifier {
       _scores[_index] = score.add(success: false, earned: 0);
     }
     _feedback = null;
-    if (_index == Exercise.values.length - 1) {
+    if (_index == exercises.length - 1) {
       _phase = WarmupPhase.finished;
     } else {
       _index++;
@@ -206,7 +258,7 @@ class WarmupController extends ChangeNotifier {
     _memoryDeadline += gap;
     if (_nextPromptAt != null) _nextPromptAt = _nextPromptAt! + gap;
     _paused = false;
-    // An interrupted flash gets a fresh pattern and a full one-second look.
+    // An interrupted flash gets a fresh pattern and the full preview duration.
     if (exercise == Exercise.memory && _memoryPhase == MemoryPhase.showing) {
       _generatePrompt();
     }

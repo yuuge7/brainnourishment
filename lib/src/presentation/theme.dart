@@ -11,18 +11,24 @@ abstract final class Palette {
   static const mint = Color(0xFFB6F3CE);
   static const violet = Color(0xFFB7A4FF);
   static const cyan = Color(0xFF87DDF1);
+  static const amber = Color(0xFFFFDB7A);
+  static const peach = Color(0xFFFFC49C);
   static const error = Color(0xFFFF8E9C);
 
   static Color accent(Exercise exercise) => switch (exercise) {
     Exercise.focus => violet,
     Exercise.logic => cyan,
     Exercise.memory => mint,
+    Exercise.sequence => amber,
+    Exercise.switching => peach,
   };
 
   static IconData icon(Exercise exercise) => switch (exercise) {
     Exercise.focus => Icons.filter_center_focus_rounded,
     Exercise.logic => Icons.functions_rounded,
     Exercise.memory => Icons.grid_view_rounded,
+    Exercise.sequence => Icons.more_horiz_rounded,
+    Exercise.switching => Icons.swap_horiz_rounded,
   };
 
   static Color ink(Ink ink) => switch (ink) {

@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
 
+import 'application/warmup_controller.dart';
 import 'data/progress_repository.dart';
+import 'domain/game.dart';
+import 'domain/morning.dart';
 import 'domain/progress.dart';
 import 'presentation/home_screen.dart';
+import 'presentation/morning_setup_screen.dart';
 import 'presentation/theme.dart';
 import 'presentation/warmup_screen.dart';
 
 class BrainNourishmentApp extends StatefulWidget {
-  const BrainNourishmentApp({super.key, this.repository});
+  const BrainNourishmentApp({
+    super.key,
+    this.repository,
+    this.controllerFactory,
+  });
   final ProgressRepository? repository;
+  final WarmupController Function(
+    TrainingMode mode,
+    Difficulty difficulty,
+    Exercise practiceExercise,
+  )?
+  controllerFactory;
 
   @override
   State<BrainNourishmentApp> createState() => _BrainNourishmentAppState();
@@ -44,24 +58,70 @@ class _BrainNourishmentAppState extends State<BrainNourishmentApp>
     }
   }
 
-  Future<void> _start(BuildContext context) async {
+  Future<void> _start(
+    BuildContext context,
+    TrainingMode mode,
+    Difficulty difficulty, {
+    Exercise practiceExercise = Exercise.focus,
+  }) async {
+    MorningPlan? plan;
+    if (mode == TrainingMode.morning) {
+      plan = await Navigator.of(context).push<MorningPlan>(
+        MaterialPageRoute(builder: (_) => const MorningSetupScreen()),
+      );
+      if (!mounted || !context.mounted || plan == null) return;
+    }
+    final sessionId = DateTime.now().microsecondsSinceEpoch.toString();
     ProgressStats? completion;
+    Future<void> persist(ProgressStats stats) async {
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _error = null;
+        });
+      }
+      await _repository.save(stats);
+    }
+
+    final controller = widget.controllerFactory?.call(
+      mode,
+      plan?.difficulty ?? difficulty,
+      practiceExercise,
+    );
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => WarmupScreen(
+          controller: controller,
+          mode: mode,
+          difficulty: plan?.difficulty ?? difficulty,
+          practiceExercise: practiceExercise,
+          morningBefore: plan?.before,
+          initialIntention: _stats.morningOn(DateTime.now())?.intention ?? '',
+          onReflection: mode == TrainingMode.morning
+              ? (reflection) async {
+                  completion = completion!.reflect(sessionId, reflection);
+                  await persist(completion!);
+                }
+              : null,
           onCompleted: (scores) async {
+            if (mode == TrainingMode.practice) return;
+            final now = DateTime.now();
+            final points = scores.fold(0, (sum, score) => sum + score.points);
             // Retries write the same snapshot; one session increments the total once.
             completion ??= _stats.complete(
-              DateTime.now(),
-              scores.fold(0, (sum, score) => sum + score.points),
+              now,
+              points,
+              morning: mode == TrainingMode.morning
+                  ? MorningEntry(
+                      id: sessionId,
+                      day: ProgressStats.dayKey(now),
+                      points: points,
+                      before: plan?.before,
+                      intention: _stats.morningOn(now)?.intention ?? '',
+                    )
+                  : null,
             );
-            if (mounted) {
-              setState(() {
-                _stats = completion!;
-                _error = null;
-              });
-            }
-            await _repository.save(completion!);
+            await persist(completion!);
           },
         ),
       ),
@@ -92,7 +152,13 @@ class _BrainNourishmentAppState extends State<BrainNourishmentApp>
         stats: _stats,
         loading: _loading,
         error: _error,
-        onStart: () => _start(context),
+        onStart: (mode, difficulty) => _start(context, mode, difficulty),
+        onPractice: (exercise, difficulty) => _start(
+          context,
+          TrainingMode.practice,
+          difficulty,
+          practiceExercise: exercise,
+        ),
       ),
     ),
   );

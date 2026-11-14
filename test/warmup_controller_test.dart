@@ -33,7 +33,7 @@ void main() {
     fakeAsync((clock) {
       final controller = WarmupController(elapsed: () => clock.elapsed);
       addTearDown(controller.dispose);
-      for (final exercise in Exercise.values) {
+      for (final exercise in controller.exercises) {
         expect(controller.exercise, exercise);
         expect(controller.phase, WarmupPhase.ready);
         controller.beginRound();
@@ -84,9 +84,11 @@ void main() {
     var seenFalse = false;
     for (var i = 0; i < 200; i++) {
       final prompt = MathPrompt.generate(random);
-      final actual = prompt.isAddition
-          ? prompt.left + prompt.right
-          : prompt.left - prompt.right;
+      final actual = switch (prompt.operation) {
+        MathOperation.addition => prompt.left + prompt.right,
+        MathOperation.subtraction => prompt.left - prompt.right,
+        MathOperation.multiplication => prompt.left * prompt.right,
+      };
       expect(prompt.isTrue, prompt.proposed == actual);
       expect(actual, greaterThanOrEqualTo(0));
       seenTrue |= prompt.isTrue;
@@ -112,6 +114,7 @@ void main() {
     fakeAsync((clock) {
       final controller = WarmupController(
         random: Random(42),
+        difficulty: Difficulty.standard,
         elapsed: () => clock.elapsed,
       );
       addTearDown(controller.dispose);
@@ -158,7 +161,10 @@ void main() {
     'memory pause restarts an interrupted flash; incomplete recall counts once',
     () {
       fakeAsync((clock) {
-        final controller = WarmupController(elapsed: () => clock.elapsed);
+        final controller = WarmupController(
+          difficulty: Difficulty.standard,
+          elapsed: () => clock.elapsed,
+        );
         addTearDown(controller.dispose);
         for (var i = 0; i < 2; i++) {
           controller.beginRound();

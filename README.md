@@ -1,23 +1,41 @@
 # Brain Nourishment
 
-A focused, offline Android app for a daily 90-second cognitive warmup. Three short games exercise focus, logic, and visual memory in a fixed landscape interface.
+A focused, offline Android app for easing into your morning. A guided 90-second warmup starts gently with memory, then builds through focus and math. Five games, other session modes, and individual practice stay available in a portrait interface.
 
 ![Brain Nourishment dashboard](docs/screenshots/home.png)
 
 ## Features
 
-- **Stroop effect:** identify the ink color while ignoring the conflicting color word.
-- **Quick math:** decide whether an addition or subtraction equation is true or false.
-- **Memory grid:** remember three highlighted tiles after a one-second flash, then recall them on a 3×3 grid.
+- **Morning wake-up:** the main action on the home screen. An optional Sleepy / Getting there / Ready check-in suggests a finishing difficulty that you can override. Each 30-second round builds toward that level: Standard/Standard/Standard, Standard/Standard/Challenge, or Standard/Challenge/Expert.
+- **A moment to settle in:** optional prompts to sit up, let in daylight if available, and take a comfortable breath. They do not gate the games.
+- **Morning reflection:** optionally record how awake you feel afterward and one intention for the day. The intention appears on the home screen and is carried into a same-day repeat so it can be kept or edited.
+- **Morning habit tracking:** a rolling seven-day view, distinct morning days, and a separate morning streak. Other training modes and practice do not fill the morning tracker.
+- **Stroop effect:** identify the ink color while ignoring the conflicting color word. Challenge and Expert shuffle the answer positions after each question.
+- **Quick math:** decide whether an equation is true or false. Challenge adds multiplication; Expert uses larger numbers.
+- **Memory grid:** recall three tiles on Standard (3×3, 1-second flash), four on Challenge (3×3, 0.85-second flash), or five on Expert (4×4, 0.65-second flash).
+- **Number sequence:** choose the missing next number. Higher difficulties introduce growing and alternating steps.
+- **Rule switch:** alternate between judging even/odd and below/above a boundary. Expert uses numbers up to 200.
+- **Session modes:** Daily includes focus, math, and memory for 30 seconds each. Full circuit includes all five games for 30 seconds each; Sprint includes all five for 15 seconds each.
+- **Individual practice:** play any one of the five games for 30 seconds. Practice does not change completed-warmup totals, best scores, or streaks.
+- **Difficulty selection:** Standard, Challenge (the default), and Expert, with instructions matching the selected rules.
 - **Daily progress:** completed warmups, calendar-day streaks, and best session scores saved on-device.
 - **Session controls:** instructions before each round, pause/resume, automatic pause when backgrounded, and per-game results.
-- **Landscape layout:** dark theme, bundled fonts, large answer controls, and scroll support for short windows or larger text settings.
+- **Portrait layout:** vertically stacked game boards and controls, dark theme, bundled fonts, and scrolling for small phones or larger text settings.
 
-Each game has 30 seconds of active time. Instructions and pauses do not consume the timer. Correct focus/math answers earn 10 points; memory earns 10 points per correctly recalled tile. An incomplete grid at the deadline counts as a missed pattern. Finishing all three games records a warmup; exiting early does not.
+Instructions, check-ins, and pauses do not consume the timer. Correct answers earn 10 points; memory earns 10 points per correctly recalled tile in a submitted pattern. An incomplete grid at the deadline counts as a missed pattern. Finishing every game in Morning wake-up, Daily, Full circuit, or Sprint records a warmup; exiting early does not. The best score is the highest raw completed-warmup total across these modes and difficulties.
 
-Progress survives app restarts. Replays count as additional warmups but extend the streak only once per local calendar day. There are no accounts, cloud sync, or network requirements. Sessions interrupted by process termination are not restored.
+Progress survives app restarts, including upgrades from the earlier saved-progress format. Replays count as additional warmups but extend streaks only once per local calendar day. Morning history retains the latest entry for each of the last 60 recorded days; lifetime counters and longer streaks are retained separately. Check-ins record your own impression of how awake you feel. There are no accounts, cloud sync, or network requirements. Sessions interrupted by process termination are not restored.
 
-[Focus screenshot](docs/screenshots/focus.png) · [Math screenshot](docs/screenshots/math.png) · [Memory screenshot](docs/screenshots/memory.png) · [Results screenshot](docs/screenshots/results.png)
+The routine can be used whenever you wake up; it has no fixed morning-hour cutoff. The 90-second label covers active play only. Preparation and reflection are optional and untimed. Morning light is included as a practical cue, informed by [CDC/NIOSH guidance on light and alertness](https://archive.cdc.gov/www_cdc_gov/niosh/emres/longhourstraining/light.html).
+
+[Morning setup](docs/screenshots/morning-setup.png) · [Morning memory round](docs/screenshots/morning-memory.png) · [Morning reflection](docs/screenshots/morning-results.png) · [Focus screenshot](docs/screenshots/focus.png) · [Math screenshot](docs/screenshots/math.png) · [Memory screenshot](docs/screenshots/memory.png) · [Sequence screenshot](docs/screenshots/sequence.png) · [Rule switch screenshot](docs/screenshots/switching.png) · [Results screenshot](docs/screenshots/results.png)
+
+## Next ideas
+
+- Optional reminders at your chosen wake-up time.
+- A rotating morning game mix that keeps the gentle start while adding variety.
+
+These are ideas for a later version and are not implemented yet.
 
 ## Development requirements
 
@@ -66,13 +84,13 @@ python -m unittest discover -s tool/tests -v
 flutter build apk --debug
 ```
 
-Keep game behavior in the controller/domain layers and UI rendering in the presentation layer. Include a test when changing timing, scoring, progress, or release behavior. For visual changes, check a short landscape window and enlarged text. Use descriptive commit messages; they become release notes. Conventional prefixes such as `feat:`, `fix:`, `perf:`, `docs:`, and `ci:` produce grouped changelog sections. Breaking changes can use `feat!: ...` or a `BREAKING CHANGE:` message body.
+Keep game behavior in the controller/domain layers and UI rendering in the presentation layer. Include a test when changing timing, scoring, progress, or release behavior. For visual changes, check a small portrait phone and enlarged text. Use descriptive commit messages; they become release notes. Conventional prefixes such as `feat:`, `fix:`, `perf:`, `docs:`, and `ci:` produce grouped changelog sections. Breaking changes can use `feat!: ...` or a `BREAKING CHANGE:` message body.
 
 ## Project structure
 
 ```text
 lib/
-  main.dart                  Flutter initialization and fixed landscape lock
+  main.dart                  Flutter initialization and fixed portrait lock
   src/
     app.dart                 Navigation and app-level progress state
     application/             Warmup clock, scoring, pause, exercise transitions
@@ -93,7 +111,7 @@ tool/
 
 State uses Flutter's `setState`, `ChangeNotifier`, and `AnimatedBuilder`. Progress uses `SharedPreferencesAsync` with Android DataStore. Widgets do not own persistence or game rules.
 
-The stable application ID is `com.brainnourishment.brain_nourishment`. Keep it and the signing identity unchanged when distributing updates. The app locks to `DeviceOrientation.landscapeLeft` in Dart and `landscape` in the Android manifest. Its game category is covered by Android's documented [large-screen orientation exception](https://developer.android.com/about/versions/17/changes/ff-restrictions-ignored); device/windowing behavior should still be checked on intended hardware.
+The stable application ID is `com.brainnourishment.brain_nourishment`. Keep it and the signing identity unchanged when distributing updates. The app requests `DeviceOrientation.portraitUp` in Dart and `portrait` in the Android manifest. Check orientation behavior on intended devices and windowing configurations.
 
 ## Automated GitHub releases
 
@@ -227,6 +245,6 @@ flutter create --platforms=android --org com.brainnourishment --project-name bra
 
 ## Verification and credits
 
-The app includes 16 Flutter tests covering timing, scoring, memory phases, progress, layout sizes, save retries, and navigation. Release tooling has separate Python tests for increasing versions, overwrite refusal, artifact validation, trust boundaries, changelog generation, and signing export. Manual checks have covered the full warmup, saved progress after restart, and the landscape lock on an Android 17 emulator. Physical-device and tablet testing remain useful contributions.
+The app includes 47 Flutter tests covering all session modes and difficulties, the gradual morning routine, individual practice, old-progress migration, check-ins, long streaks, generated questions, timing, scoring, memory phases, portrait layout sizes, enlarged text, save retries, and navigation. Release tooling has 17 separate Python tests for increasing versions, overwrite refusal, artifact validation, trust boundaries, changelog generation, and signing export. Manual checks on an Android 9 emulator cover the portrait lock, a complete five-game Sprint, a complete morning routine with gradual difficulty, and saved check-ins, intention, and progress after restarting the app. Physical-device and tablet testing remain useful contributions.
 
 The bundled **Space Grotesk** and **Manrope** fonts are distributed under the SIL Open Font License. Their license files are included in `assets/fonts/`.

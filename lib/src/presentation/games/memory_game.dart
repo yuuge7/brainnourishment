@@ -11,56 +11,59 @@ class MemoryGame extends StatelessWidget {
   final WarmupController controller;
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => Column(
     children: [
-      Expanded(
-        flex: 4,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Eyebrow(switch (controller.memoryPhase) {
-              MemoryPhase.showing => 'Look closely',
-              MemoryPhase.recalling => 'Your turn',
-              MemoryPhase.feedback => 'The pattern',
-            }, color: Palette.mint),
-            const SizedBox(height: 12),
-            Text(switch (controller.memoryPhase) {
-              MemoryPhase.showing => 'Remember\nthese 3 tiles.',
-              MemoryPhase.recalling => 'Tap the 3 tiles\nyou remember.',
-              MemoryPhase.feedback =>
-                controller.feedback!
-                    ? 'All three.\nNicely done.'
-                    : 'A fresh pattern\nis up next.',
-            }, style: displayStyle(24)),
-            const SizedBox(height: 14),
-            Text(
-              controller.memoryPhase == MemoryPhase.recalling
-                  ? '${controller.selected.length} of 3 selected'
-                  : '1 second to remember',
-              style: const TextStyle(fontSize: 11, color: Palette.muted),
-            ),
-          ],
-        ),
+      Eyebrow(switch (controller.memoryPhase) {
+        MemoryPhase.showing => 'Look closely',
+        MemoryPhase.recalling => 'Your turn',
+        MemoryPhase.feedback => 'The pattern',
+      }, color: Palette.mint),
+      const SizedBox(height: 10),
+      Text(
+        switch (controller.memoryPhase) {
+          MemoryPhase.showing =>
+            'Remember these ${controller.memoryTileCount} tiles.',
+          MemoryPhase.recalling =>
+            'Tap the ${controller.memoryTileCount} tiles.',
+          MemoryPhase.feedback =>
+            controller.feedback!
+                ? 'You got them all.'
+                : 'A fresh pattern is up next.',
+        },
+        textAlign: TextAlign.center,
+        style: displayStyle(22),
       ),
-      const SizedBox(width: 12),
+      const SizedBox(height: 8),
+      Text(
+        switch (controller.memoryPhase) {
+          MemoryPhase.recalling =>
+            '${controller.selected.length} of ${controller.memoryTileCount} selected',
+          MemoryPhase.showing =>
+            '${controller.memoryFlash.inMilliseconds / 1000}s to remember',
+          MemoryPhase.feedback =>
+            '${controller.selected.intersection(controller.targets).length} tiles remembered',
+        },
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11, color: Palette.muted),
+      ),
+      const SizedBox(height: 16),
       Expanded(
-        flex: 6,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final side = math.min(constraints.maxWidth, constraints.maxHeight);
+            final columns = controller.gridSide;
             return Center(
               child: SizedBox.square(
                 dimension: side,
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   padding: EdgeInsets.zero,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
-                  itemCount: 9,
+                  itemCount: columns * columns,
                   itemBuilder: (context, index) {
                     final selected = controller.selected.contains(index);
                     final reveal =
@@ -73,7 +76,8 @@ class MemoryGame extends StatelessWidget {
                         !target;
                     final color = wrong ? Palette.error : Palette.mint;
                     return Semantics(
-                      label: 'Row ${index ~/ 3 + 1}, column ${index % 3 + 1}',
+                      label:
+                          'Row ${index ~/ columns + 1}, column ${index % columns + 1}',
                       selected: selected,
                       child: Material(
                         color: highlighted || wrong

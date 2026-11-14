@@ -5,13 +5,18 @@ import 'package:flutter/material.dart';
 import '../domain/game.dart';
 import 'theme.dart';
 
-/// Maintains usable controls on short landscape windows and enlarged text.
-/// Only constrained windows scroll; normal landscape fills the screen.
+/// Centers portrait content and lets short windows or enlarged text scroll.
 class PageShell extends StatelessWidget {
-  const PageShell({super.key, required this.child, this.minimumHeight = 300});
+  const PageShell({
+    super.key,
+    required this.child,
+    this.minimumHeight = 300,
+    this.fillHeight = true,
+  });
 
   final Widget child;
   final double minimumHeight;
+  final bool fillHeight;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -24,14 +29,20 @@ class PageShell extends StatelessWidget {
             minimumHeight * math.max(1, textScale),
           );
           return SingleChildScrollView(
-            child: SizedBox(
-              height: height,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: constraints.maxWidth < 700 ? 20 : 32,
-                  vertical: 16,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: SizedBox(
+                  height: fillHeight ? height : null,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: constraints.maxWidth < 360 ? 16 : 24,
+                      vertical: 16,
+                    ),
+                    child: child,
+                  ),
                 ),
-                child: child,
               ),
             ),
           );
@@ -118,14 +129,14 @@ class SurfacePanel extends StatelessWidget {
   final EdgeInsets padding;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: padding,
-    decoration: BoxDecoration(
-      color: Palette.surface,
-      border: Border.all(color: Palette.border.withValues(alpha: .7)),
+  Widget build(BuildContext context) => Material(
+    color: Palette.surface,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
+      side: BorderSide(color: Palette.border.withValues(alpha: .7)),
       borderRadius: BorderRadius.circular(24),
     ),
-    child: child,
+    child: Padding(padding: padding, child: child),
   );
 }
 
