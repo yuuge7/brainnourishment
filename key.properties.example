@@ -1,0 +1,6 @@
+# Copy only when configuring your own local release signing identity.
+# The real key.properties and keystore are ignored by Git.
+storeFile=brain-nourishment-release.jks
+storePassword=REPLACE_WITH_YOUR_KEYSTORE_PASSWORD
+keyAlias=brain-nourishment
+keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD

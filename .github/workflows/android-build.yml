@@ -1,0 +1,126 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# No shared cancellation group: each push must get its own build and version.
+jobs:
+  build:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: ${{ github.event_name == 'push' && 'android-release' || 'android-preview' }}
+    env:
+      FLUTTER_VERSION: '3.47.0'
+      BRAIN_PREVIEW_BUILD: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Check release tooling
+        run: python -m unittest discover -s tool/tests -v
+
+      - name: Assign a unique app version
+        id: version
+        run: python tool/release.py prepare --output build/release/metadata.json
+
+      - name: Install Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze Dart
+        run: flutter analyze
+
+      - name: Test app
+        run: flutter test
+
+      # These secrets must live in the android-release environment, with its
+      # deployment branch restricted to main. Never use repository secrets here.
+      - name: Restore permanent signing identity
+        if: github.event_name == 'push'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: python
+        run: |
+          import base64, os
+          from pathlib import Path
+          names = ['ANDROID_KEYSTORE_BASE64', 'ANDROID_STORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']
+          if not all(os.environ.get(name) for name in names):
+              raise SystemExit('Configure the four signing secrets in the android-release environment first.')
+          key = Path('brain-nourishment-release.jks')
+          key.write_bytes(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'], validate=True))
+          key.chmod(0o600)
+          def escape(value):
+              return value.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('=', '\\=').replace(':', '\\:')
+          properties = Path('key.properties')
+          properties.write_text(
+              'storeFile=brain-nourishment-release.jks\n'
+              + 'storePassword=' + escape(os.environ['ANDROID_STORE_PASSWORD']) + '\n'
+              + 'keyAlias=' + escape(os.environ['ANDROID_KEY_ALIAS']) + '\n'
+              + 'keyPassword=' + escape(os.environ['ANDROID_KEY_PASSWORD']) + '\n', encoding='utf-8')
+          properties.chmod(0o600)
+
+      - name: Build APK
+        run: flutter build apk --release --build-name '${{ steps.version.outputs.version }}' --build-number '${{ steps.version.outputs.build_number }}'
+
+      - name: Build signed app bundle
+        if: github.event_name == 'push'
+        run: flutter build appbundle --release --build-name '${{ steps.version.outputs.version }}' --build-number '${{ steps.version.outputs.build_number }}'
+
+      - name: Collect public release files
+        shell: bash
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk build/release/brain-nourishment.apk
+          if [ "$BRAIN_PREVIEW_BUILD" = 'false' ]; then
+            cp build/app/outputs/bundle/release/app-release.aab build/release/brain-nourishment.aab
+          fi
+
+      - name: Upload release package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-release-${{ github.run_attempt }}
+          path: build/release/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove signing material from the runner
+        if: always()
+        shell: python
+        run: |
+          from pathlib import Path
+          for name in ['brain-nourishment-release.jks', 'key.properties']:
+              Path(name).unlink(missing_ok=True)
