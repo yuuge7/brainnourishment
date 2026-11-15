@@ -53,7 +53,7 @@ void main() {
     const Size(740, 360),
   ]) {
     for (final textScale in [1.0, 1.5]) {
-      testWidgets('five games fit $size at text scale $textScale', (
+      testWidgets('six games fit $size at text scale $textScale', (
         tester,
       ) async {
         setViewport(tester, size);
@@ -87,6 +87,9 @@ void main() {
             isNull,
             reason: '${exercise.title} instructions',
           );
+          if (exercise == Exercise.logic) {
+            controller.setMathMode(MathMode.calculate);
+          }
           controller.beginRound();
           await tester.pump();
           expect(tester.takeException(), isNull, reason: exercise.title);
@@ -98,8 +101,13 @@ void main() {
           }
           elapsed += const Duration(seconds: 30);
           await tester.pump(const Duration(seconds: 30));
+          controller.skipFinalQuestion();
           await tester.pump();
-          expect(tester.takeException(), isNull);
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'After ${exercise.title}, ${controller.exercise.title}',
+          );
         }
         expect(find.byType(ResultsScreen), findsOneWidget);
         await tester.ensureVisible(find.text('Done'));
@@ -110,7 +118,7 @@ void main() {
     }
   }
 
-  testWidgets('full circuit scores all five games and retries a failed save', (
+  testWidgets('full circuit scores all six games and retries a failed save', (
     tester,
   ) async {
     setViewport(tester, const Size(390, 844));
@@ -128,7 +136,7 @@ void main() {
           controller: controller,
           onCompleted: (scores) async {
             saves++;
-            expect(scores.length, 5);
+            expect(scores.length, 6);
             if (saves == 1) throw StateError('Storage unavailable');
           },
         ),
@@ -173,13 +181,21 @@ void main() {
               ),
             ),
           );
+        case Exercise.reaction:
+          elapsed += const Duration(seconds: 4);
+          await tester.pump(const Duration(seconds: 4));
+          elapsed += const Duration(milliseconds: 240);
+          await tester.pump(const Duration(milliseconds: 240));
+          await tester.tap(find.byKey(const ValueKey('reaction-target')));
+          await tester.pump();
       }
       expect(controller.score.points, exercise == Exercise.memory ? 30 : 10);
       elapsed += const Duration(seconds: 30);
       await tester.pump(const Duration(seconds: 30));
+      controller.skipFinalQuestion();
       await tester.pump();
     }
-    expect(controller.totalPoints, 70);
+    expect(controller.totalPoints, 80);
     expect(saves, 1);
     await tapVisible(tester, find.text('Retry'));
     expect(saves, 2);
@@ -207,7 +223,7 @@ void main() {
       expect(screen.mode, TrainingMode.sprint);
       expect(screen.difficulty, Difficulty.expert);
       expect(find.text('15 seconds'), findsOneWidget);
-      expect(find.text('Round 1 of 5'), findsOneWidget);
+      expect(find.text('Round 1 of 6'), findsOneWidget);
       await tapVisible(tester, find.byTooltip('End warmup'));
       await tester.pumpAndSettle();
       await tapVisible(tester, find.text('End warmup'));
@@ -234,6 +250,121 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });
+
+  testWidgets(
+    'calculate selector and keypad finish the last answer after zero',
+    (tester) async {
+      setViewport(tester, const Size(390, 844));
+      var elapsed = Duration.zero;
+      var completions = 0;
+      final controller = WarmupController(
+        mode: TrainingMode.practice,
+        practiceExercise: Exercise.logic,
+        roundDuration: const Duration(seconds: 1),
+        elapsed: () => elapsed,
+      );
+      await tester.pumpWidget(
+        host(
+          WarmupScreen(
+            controller: controller,
+            onCompleted: (_) async => completions++,
+          ),
+        ),
+      );
+      await tapVisible(
+        tester,
+        find.byKey(const ValueKey('math-mode-calculate')),
+      );
+      await tapVisible(tester, find.text('Begin logic'));
+      expect(find.text('True'), findsNothing);
+      expect(find.text(controller.math.equation), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('math-submit')))
+            .onPressed,
+        isNull,
+      );
+      await tapVisible(tester, find.byKey(const ValueKey('math-digit-9')));
+      await tapVisible(tester, find.byKey(const ValueKey('math-delete')));
+      expect(controller.mathInput, isEmpty);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit9, character: '9');
+      expect(controller.mathInput, '9');
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      expect(controller.mathInput, isEmpty);
+      final keypadPosition = tester.getRect(
+        find.byKey(const ValueKey('math-digit-1')),
+      );
+      elapsed = const Duration(seconds: 1);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Time’s up. Finish this question.'), findsOneWidget);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('math-digit-1'))),
+        keypadPosition,
+      );
+      for (final digit in '${controller.math.answer}'.split('')) {
+        await tapVisible(tester, find.byKey(ValueKey('math-digit-$digit')));
+      }
+      await tapVisible(tester, find.byKey(const ValueKey('math-submit')));
+      elapsed += const Duration(milliseconds: 250);
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      expect(find.byType(ResultsScreen), findsOneWidget);
+      expect(find.text('1/1 correct · 100%'), findsOneWidget);
+      expect(completions, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'reaction target changes color, reports early taps, and records key presses',
+    (tester) async {
+      setViewport(tester, const Size(390, 844));
+      var elapsed = Duration.zero;
+      final controller = WarmupController(
+        mode: TrainingMode.practice,
+        practiceExercise: Exercise.reaction,
+        elapsed: () => elapsed,
+      );
+      await tester.pumpWidget(
+        host(WarmupScreen(controller: controller, onCompleted: (_) async {})),
+      );
+      await tapVisible(tester, find.text('Begin reflexes'));
+      expect(find.text('Wait for green'), findsOneWidget);
+      final red = tester
+          .widget<Container>(find.byKey(const ValueKey('reaction-target')))
+          .decoration;
+      await tester.tap(find.byKey(const ValueKey('reaction-target')));
+      await tester.pump();
+      expect(find.text('Too soon'), findsOneWidget);
+      expect(controller.score.reactionTimes, isEmpty);
+      elapsed += const Duration(milliseconds: 900);
+      await tester.pump(const Duration(milliseconds: 900));
+      elapsed += const Duration(seconds: 4);
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('Tap now!'), findsOneWidget);
+      final green = tester
+          .widget<Container>(find.byKey(const ValueKey('reaction-target')))
+          .decoration;
+      expect(red, isNot(green));
+      elapsed += const Duration(milliseconds: 225);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+      expect(find.text('225 ms'), findsOneWidget);
+      expect(controller.score.reactionTimes.single.inMilliseconds, 225);
+      elapsed = const Duration(seconds: 30);
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pump();
+      expect(
+        find.text('225 ms average · 225 ms best\n1 reaction · 1 false start'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    },
+  );
 }
 
 class _MemoryRepository implements ProgressRepository {

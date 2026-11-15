@@ -7,6 +7,7 @@ import '../domain/game.dart';
 import '../domain/morning.dart';
 import 'games/math_game.dart';
 import 'games/memory_game.dart';
+import 'games/reaction_game.dart';
 import 'games/sequence_game.dart';
 import 'games/stroop_game.dart';
 import 'games/switching_game.dart';
@@ -152,7 +153,9 @@ class _WarmupScreenState extends State<WarmupScreen>
               onDone: () => Navigator.pop(context),
             )
           : PageShell(
-              minimumHeight: 660,
+              minimumHeight: _controller.exercise == Exercise.logic
+                  ? (_controller.phase == WarmupPhase.ready ? 760 : 720)
+                  : 660,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -236,7 +239,10 @@ class _WarmupScreenState extends State<WarmupScreen>
         Text(exercise.title, style: displayStyle(34)),
         const SizedBox(height: 10),
         Text(
-          exercise.subtitle,
+          exercise == Exercise.logic &&
+                  _controller.mathMode == MathMode.calculate
+              ? 'Work it out. Enter your answer.'
+              : exercise.subtitle,
           style: const TextStyle(
             fontSize: 13,
             color: Palette.muted,
@@ -268,6 +274,23 @@ class _WarmupScreenState extends State<WarmupScreen>
           ),
         ),
         const SizedBox(height: 22),
+        if (exercise == Exercise.logic) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final mode in MathMode.values)
+                ChoiceChip(
+                  key: ValueKey('math-mode-${mode.name}'),
+                  label: Text(mode.title),
+                  selected: _controller.mathMode == mode,
+                  onSelected: (_) => _controller.setMathMode(mode),
+                  selectedColor: accent.withValues(alpha: .18),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         Text(
           _instructions(exercise),
           style: const TextStyle(
@@ -278,7 +301,7 @@ class _WarmupScreenState extends State<WarmupScreen>
         ),
         const SizedBox(height: 12),
         const Text(
-          'The timer starts when you’re ready.',
+          'When time is up, finish the current question or leave it uncounted.',
           style: TextStyle(fontSize: 11, color: Palette.muted),
         ),
         const SizedBox(height: 18),
@@ -296,7 +319,7 @@ class _WarmupScreenState extends State<WarmupScreen>
     Exercise.focus =>
       'Tap the button that matches the text’s ink color. Ignore the word.${_controller.roundDifficulty == Difficulty.standard ? '' : ' The buttons change position each time.'}',
     Exercise.logic =>
-      'Choose True or False for each equation. ${_controller.roundDifficulty == Difficulty.standard ? 'Addition and subtraction.' : 'Addition, subtraction, and multiplication.'}',
+      '${_controller.mathMode == MathMode.calculate ? 'Work out each answer yourself. Enter it on the number pad, then tap the check mark.' : 'Choose True or False for each equation.'} ${_controller.roundDifficulty == Difficulty.standard ? 'Addition and subtraction.' : 'Addition, subtraction, and multiplication.'}',
     Exercise.memory =>
       '${_controller.memoryTileCount} tiles light up for ${_controller.memoryFlash.inMilliseconds / 1000} seconds. When they go dark, tap the same tiles on the ${_controller.gridSide} × ${_controller.gridSide} grid.',
     Exercise.sequence =>
@@ -306,6 +329,7 @@ class _WarmupScreenState extends State<WarmupScreen>
         Difficulty.expert => 'Steps can stay the same, grow by one, or alternate.',
       }} Choose one of four answers.',
     Exercise.switching => 'The rule switches after every answer. Alternate between Even or Odd and Below or Above the displayed boundary. Read the rule each time.',
+    Exercise.reaction => 'Wait while the panel is red. As soon as it turns green, tap it. Each wait is random. Early taps count as false starts; only valid reactions go into your average. Lower milliseconds are better.',
   };
 
   Widget _playing() {
@@ -351,7 +375,9 @@ class _WarmupScreenState extends State<WarmupScreen>
             ),
             const SizedBox(height: 14),
             Text(
-              _controller.mode == TrainingMode.morning
+              _controller.finishingQuestion
+                  ? 'Time’s up. Finish this question.'
+                  : _controller.mode == TrainingMode.morning
                   ? 'Take your time. Accuracy comes first.'
                   : '${_controller.score.points} points',
               style: TextStyle(
@@ -370,22 +396,38 @@ class _WarmupScreenState extends State<WarmupScreen>
                   Exercise.memory => MemoryGame(controller: _controller),
                   Exercise.sequence => SequenceGame(controller: _controller),
                   Exercise.switching => SwitchingGame(controller: _controller),
+                  Exercise.reaction => ReactionGame(controller: _controller),
                 },
               ),
             ),
             const SizedBox(height: 14),
-            Text(
-              _controller.feedback == null
-                  ? 'Find your rhythm.'
-                  : _controller.feedback!
-                  ? 'Nice work ✓'
-                  : 'Keep going ↻',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: _controller.feedback == false
-                    ? Palette.error
-                    : Palette.mint,
+            // Keep controls still when the last-question action appears.
+            SizedBox(
+              height: MediaQuery.textScalerOf(context).scale(20) * 2 + 16,
+              child: Center(
+                child: _controller.finishingQuestion
+                    ? TextButton(
+                        key: const ValueKey('skip-final-question'),
+                        onPressed: _controller.skipFinalQuestion,
+                        child: const Text(
+                          'End round without this question',
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Text(
+                        _controller.feedback == null
+                            ? 'Find your rhythm.'
+                            : _controller.feedback!
+                            ? 'Nice work ✓'
+                            : 'Keep going ↻',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _controller.feedback == false
+                              ? Palette.error
+                              : Palette.mint,
+                        ),
+                      ),
               ),
             ),
           ],

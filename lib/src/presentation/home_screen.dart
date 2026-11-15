@@ -346,7 +346,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   subtitle: Text(
-                    exercise.skill,
+                    exercise == Exercise.logic
+                        ? 'True or false · calculate it'
+                        : exercise == Exercise.reaction
+                        ? 'Tap on green · response time in ms'
+                        : exercise.skill,
                     style: const TextStyle(fontSize: 11, color: Palette.muted),
                   ),
                   trailing: const Icon(Icons.play_arrow_rounded, size: 22),

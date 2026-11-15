@@ -87,6 +87,7 @@ void main() {
             expect(controller.gridSide, 3);
           }
           clock.elapse(const Duration(seconds: 30));
+          controller.skipFinalQuestion();
         }
         expect(controller.phase, WarmupPhase.finished);
       });
@@ -104,6 +105,7 @@ void main() {
         expect(controller.exercises, [exercise]);
         controller.beginRound();
         clock.elapse(const Duration(seconds: 30));
+        controller.skipFinalQuestion();
         expect(controller.phase, WarmupPhase.finished);
         expect(controller.scores.single.exercise, exercise);
         controller.dispose();
@@ -311,6 +313,7 @@ void main() {
           }
           elapsed += const Duration(seconds: 29);
           await tester.pump(const Duration(seconds: 29));
+          controller.skipFinalQuestion();
         } else {
           if (exercise == Exercise.focus) {
             controller.answerInk(controller.stroop.ink);
@@ -319,6 +322,7 @@ void main() {
           }
           elapsed += const Duration(seconds: 30);
           await tester.pump(const Duration(seconds: 30));
+          controller.skipFinalQuestion();
         }
         await tester.pump();
       }
@@ -393,6 +397,7 @@ void main() {
     controller.answerSequence(controller.sequence.answer);
     elapsed += const Duration(seconds: 30);
     await tester.pump(const Duration(seconds: 30));
+    controller.skipFinalQuestion();
     await tester.pump();
     expect(find.text('PRACTICE COMPLETE'), findsOneWidget);
     expect(repository.calls, 0);
@@ -457,6 +462,7 @@ void main() {
       expect(tester.takeException(), isNull);
       elapsed += const Duration(seconds: 30);
       await tester.pump(const Duration(seconds: 30));
+      controller.skipFinalQuestion();
       await tester.pump();
     }
     expect(find.byType(ResultsScreen), findsOneWidget);

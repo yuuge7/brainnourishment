@@ -29,7 +29,7 @@ void main() {
     });
   });
 
-  test('each round lasts 30 active seconds and ends in the required order', () {
+  test('each round allows finishing or skipping its last question at zero', () {
     fakeAsync((clock) {
       final controller = WarmupController(elapsed: () => clock.elapsed);
       addTearDown(controller.dispose);
@@ -41,6 +41,9 @@ void main() {
         expect(controller.phase, WarmupPhase.playing);
         expect(controller.secondsLeft, 1);
         clock.elapse(const Duration(milliseconds: 50));
+        expect(controller.finishingQuestion, true);
+        expect(controller.secondsLeft, 0);
+        controller.skipFinalQuestion();
         expect(
           controller.phase,
           exercise == Exercise.memory
@@ -73,6 +76,8 @@ void main() {
         clock.elapse(const Duration(seconds: 25));
         expect(controller.phase, WarmupPhase.playing);
         clock.elapse(const Duration(seconds: 1));
+        expect(controller.finishingQuestion, true);
+        controller.skipFinalQuestion();
         expect(controller.exercise, Exercise.logic);
       });
     },
@@ -100,6 +105,7 @@ void main() {
       addTearDown(controller.dispose);
       controller.beginRound();
       clock.elapse(const Duration(seconds: 30));
+      controller.skipFinalQuestion();
       controller.beginRound();
       controller.answerMath(controller.math.isTrue);
       expect(controller.score.points, 10);
@@ -121,6 +127,7 @@ void main() {
       for (var i = 0; i < 2; i++) {
         controller.beginRound();
         clock.elapse(const Duration(seconds: 30));
+        controller.skipFinalQuestion();
       }
       controller.beginRound();
       final targets = controller.targets.toList();
@@ -158,7 +165,7 @@ void main() {
   });
 
   test(
-    'memory pause restarts an interrupted flash; incomplete recall counts once',
+    'memory pause restarts a flash; the final recall can finish after zero',
     () {
       fakeAsync((clock) {
         final controller = WarmupController(
@@ -169,6 +176,7 @@ void main() {
         for (var i = 0; i < 2; i++) {
           controller.beginRound();
           clock.elapse(const Duration(seconds: 30));
+          controller.skipFinalQuestion();
         }
         controller.beginRound();
         clock.elapse(const Duration(milliseconds: 500));
@@ -181,28 +189,35 @@ void main() {
         expect(controller.memoryPhase, MemoryPhase.recalling);
         controller.selectCell(controller.targets.first);
         clock.elapse(const Duration(seconds: 29));
-        expect(controller.phase, WarmupPhase.finished);
+        expect(controller.finishingQuestion, true);
+        expect(controller.score.attempts, 0);
+        for (final cell in controller.targets) {
+          controller.selectCell(cell);
+        }
         expect(controller.score.attempts, 1);
-        expect(controller.score.points, 0);
+        expect(controller.score.points, 30);
+        clock.elapse(const Duration(milliseconds: 650));
+        expect(controller.phase, WarmupPhase.finished);
       });
     },
   );
 
-  test(
-    'late answer cannot score after the deadline; dispose cancels timers',
-    () {
-      fakeAsync((clock) {
-        var time = Duration.zero;
-        final controller = WarmupController(elapsed: () => time);
-        controller.beginRound();
-        time = const Duration(seconds: 31);
-        controller.answerInk(controller.stroop.ink);
-        expect(controller.exercise, Exercise.logic);
-        expect(controller.scores.first.points, 0);
-        controller.beginRound();
-        controller.dispose();
-        expect(clock.periodicTimerCount, 0);
-      });
-    },
-  );
+  test('a final late answer scores once; dispose cancels timers', () {
+    fakeAsync((clock) {
+      var time = Duration.zero;
+      final controller = WarmupController(elapsed: () => time);
+      controller.beginRound();
+      time = const Duration(seconds: 31);
+      controller.answerInk(controller.stroop.ink);
+      controller.answerInk(controller.stroop.ink);
+      expect(controller.scores.first.points, 10);
+      expect(controller.scores.first.attempts, 1);
+      time += const Duration(milliseconds: 250);
+      clock.elapse(const Duration(milliseconds: 250));
+      expect(controller.exercise, Exercise.logic);
+      controller.beginRound();
+      controller.dispose();
+      expect(clock.periodicTimerCount, 0);
+    });
+  });
 }

@@ -30,6 +30,8 @@ void main() {
           );
           expect(controller.phase, WarmupPhase.playing);
           clock.elapse(const Duration(milliseconds: 50));
+          expect(controller.finishingQuestion, true);
+          controller.skipFinalQuestion();
         }
         expect(controller.phase, WarmupPhase.finished);
         expect(
@@ -55,6 +57,7 @@ void main() {
           for (var i = 0; i < 2; i++) {
             controller.beginRound();
             clock.elapse(controller.roundDuration);
+            controller.skipFinalQuestion();
           }
           controller.beginRound();
           expect(controller.targets.length, difficulty.memoryTiles);
@@ -157,6 +160,7 @@ void main() {
           controller.beginRound();
           time += controller.roundDuration;
           clock.elapse(controller.roundDuration);
+          controller.skipFinalQuestion();
         }
         controller.answerSequence(0);
         expect(controller.score.attempts, 0);
@@ -199,9 +203,17 @@ void main() {
         clock.elapse(const Duration(milliseconds: 250));
         time += controller.roundDuration;
         controller.answerRule(controller.rulePrompt.firstIsCorrect);
+        expect(controller.finishingQuestion, false);
+        expect(controller.score.points, 20);
+        time += const Duration(milliseconds: 250);
+        clock.elapse(const Duration(milliseconds: 250));
+        expect(controller.exercise, Exercise.reaction);
+        controller.beginRound();
+        time += controller.roundDuration;
+        clock.elapse(controller.roundDuration);
+        controller.skipFinalQuestion();
         expect(controller.phase, WarmupPhase.finished);
-        expect(controller.score.points, 10);
-        expect(controller.totalPoints, 20);
+        expect(controller.totalPoints, 30);
       });
     },
   );

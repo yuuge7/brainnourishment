@@ -1,6 +1,6 @@
 # Brain Nourishment
 
-A focused, offline Android app for easing into your morning. A guided 90-second warmup starts gently with memory, then builds through focus and math. Five games, other session modes, and individual practice stay available in a portrait interface.
+A focused, offline Android app for easing into your morning. A guided 90-second warmup starts gently with memory, then builds through focus and math. Six games, other session modes, and individual practice stay available in a portrait interface.
 
 ![Brain Nourishment dashboard](docs/screenshots/home.png)
 
@@ -11,18 +11,19 @@ A focused, offline Android app for easing into your morning. A guided 90-second 
 - **Morning reflection:** optionally record how awake you feel afterward and one intention for the day. The intention appears on the home screen and is carried into a same-day repeat so it can be kept or edited.
 - **Morning habit tracking:** a rolling seven-day view, distinct morning days, and a separate morning streak. Other training modes and practice do not fill the morning tracker.
 - **Stroop effect:** identify the ink color while ignoring the conflicting color word. Challenge and Expert shuffle the answer positions after each question.
-- **Quick math:** decide whether an equation is true or false. Challenge adds multiplication; Expert uses larger numbers.
+- **Quick math:** choose **True or false** or **Calculate it** before the round in any session. Calculate it hides the answer so you work it out yourself, then enter it on the number pad and tap the check mark. Backspace and physical keyboard input are supported. Challenge adds multiplication; Expert uses larger numbers.
 - **Memory grid:** recall three tiles on Standard (3×3, 1-second flash), four on Challenge (3×3, 0.85-second flash), or five on Expert (4×4, 0.65-second flash).
 - **Number sequence:** choose the missing next number. Higher difficulties introduce growing and alternating steps.
 - **Rule switch:** alternate between judging even/odd and below/above a boundary. Expert uses numbers up to 200.
-- **Session modes:** Daily includes focus, math, and memory for 30 seconds each. Full circuit includes all five games for 30 seconds each; Sprint includes all five for 15 seconds each.
-- **Individual practice:** play any one of the five games for 30 seconds. Practice does not change completed-warmup totals, best scores, or streaks.
+- **Reaction test:** wait through a random red interval, then tap the large panel as soon as it turns green. Response time starts when the green cue is painted and stops on touch-down. Early taps count as false starts and stay out of the average. The round and results show average and best response times in milliseconds. An interrupted trial restarts after pausing. Space or Enter also works with a physical keyboard.
+- **Session modes:** Daily includes focus, math, and memory for 30 seconds each. Full circuit includes all six games for 30 seconds each (180 seconds); Sprint includes all six for 15 seconds each (90 seconds).
+- **Individual practice:** play any one of the six games for 30 seconds. Practice does not change completed-warmup totals, best scores, or streaks.
 - **Difficulty selection:** Standard, Challenge (the default), and Expert, with instructions matching the selected rules.
 - **Daily progress:** completed warmups, calendar-day streaks, and best session scores saved on-device.
 - **Session controls:** instructions before each round, pause/resume, automatic pause when backgrounded, and per-game results.
 - **Portrait layout:** vertically stacked game boards and controls, dark theme, bundled fonts, and scrolling for small phones or larger text settings.
 
-Instructions, check-ins, and pauses do not consume the timer. Correct answers earn 10 points; memory earns 10 points per correctly recalled tile in a submitted pattern. An incomplete grid at the deadline counts as a missed pattern. Finishing every game in Morning wake-up, Daily, Full circuit, or Sprint records a warmup; exiting early does not. The best score is the highest raw completed-warmup total across these modes and difficulties.
+Instructions, check-ins, and pauses do not consume the timer. Correct answers and valid reactions earn 10 points; memory earns 10 points per correctly recalled tile in a submitted pattern. At zero, no new question starts: finish the current question, preview, or reaction trial, or choose **End round without this question**. An unanswered question or partly entered grid is never counted as a miss. Submitted wrong answers still count as attempts. Session duration labels cover the countdown; finishing the final question can add time. Finishing every game in Morning wake-up, Daily, Full circuit, or Sprint records a warmup; exiting early does not. The best score is the highest raw completed-warmup total across these modes and difficulties.
 
 Progress survives app restarts, including upgrades from the earlier saved-progress format. Replays count as additional warmups but extend streaks only once per local calendar day. Morning history retains the latest entry for each of the last 60 recorded days; lifetime counters and longer streaks are retained separately. Check-ins record your own impression of how awake you feel. There are no accounts, cloud sync, or network requirements. Sessions interrupted by process termination are not restored.
 
@@ -245,6 +246,6 @@ flutter create --platforms=android --org com.brainnourishment --project-name bra
 
 ## Verification and credits
 
-The app includes 47 Flutter tests covering all session modes and difficulties, the gradual morning routine, individual practice, old-progress migration, check-ins, long streaks, generated questions, timing, scoring, memory phases, portrait layout sizes, enlarged text, save retries, and navigation. Release tooling has 17 separate Python tests for increasing versions, overwrite refusal, artifact validation, trust boundaries, changelog generation, and signing export. Manual checks on an Android 9 emulator cover the portrait lock, a complete five-game Sprint, a complete morning routine with gradual difficulty, and saved check-ins, intention, and progress after restarting the app. Physical-device and tablet testing remain useful contributions.
+The app includes Flutter tests covering all session modes and difficulties, calculation input and scoring, reaction timing and false starts, finishing or skipping questions after zero, the gradual morning routine, individual practice, old-progress migration, check-ins, long streaks, generated questions, memory phases, portrait layout sizes, enlarged text, save retries, and navigation. The final-question regression test reproduces a prompt shown with only 0.4 seconds remaining and verifies that finishing it can produce 13/13. Release tooling has 17 separate Python tests for increasing versions, overwrite refusal, artifact validation, trust boundaries, changelog generation, and signing export. Physical-device and tablet testing remain useful contributions.
 
 The bundled **Space Grotesk** and **Manrope** fonts are distributed under the SIL Open Font License. Their license files are included in `assets/fonts/`.

@@ -21,6 +21,7 @@ abstract final class Palette {
     Exercise.memory => mint,
     Exercise.sequence => amber,
     Exercise.switching => peach,
+    Exercise.reaction => mint,
   };
 
   static IconData icon(Exercise exercise) => switch (exercise) {
@@ -29,6 +30,7 @@ abstract final class Palette {
     Exercise.memory => Icons.grid_view_rounded,
     Exercise.sequence => Icons.more_horiz_rounded,
     Exercise.switching => Icons.swap_horiz_rounded,
+    Exercise.reaction => Icons.bolt_rounded,
   };
 
   static Color ink(Ink ink) => switch (ink) {

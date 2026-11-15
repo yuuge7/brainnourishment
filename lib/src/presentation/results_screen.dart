@@ -274,7 +274,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  score.attempts == 0
+                                  score.exercise == Exercise.reaction
+                                      ? _reactionSummary(score)
+                                      : score.attempts == 0
                                       ? 'No answers this round'
                                       : '${score.correct}/${score.attempts} ${score.exercise == Exercise.memory ? 'patterns' : 'correct'} · ${(score.accuracy * 100).round()}%',
                                   style: const TextStyle(
@@ -318,5 +320,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ),
       ),
     );
+  }
+
+  String _reactionSummary(GameScore score) {
+    final average = score.averageReaction;
+    final falseStarts = score.attempts - score.correct;
+    return [
+      if (average != null)
+        '${average.inMilliseconds} ms average · ${score.bestReaction!.inMilliseconds} ms best'
+      else
+        'No reactions recorded',
+      '${score.correct} ${score.correct == 1 ? 'reaction' : 'reactions'} · $falseStarts ${falseStarts == 1 ? 'false start' : 'false starts'}',
+    ].join('\n');
   }
 }

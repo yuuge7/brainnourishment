@@ -26,9 +26,7 @@ class MemoryGame extends StatelessWidget {
           MemoryPhase.recalling =>
             'Tap the ${controller.memoryTileCount} tiles.',
           MemoryPhase.feedback =>
-            controller.feedback!
-                ? 'You got them all.'
-                : 'A fresh pattern is up next.',
+            controller.feedback! ? 'You got them all.' : 'Here’s the pattern.',
         },
         textAlign: TextAlign.center,
         style: displayStyle(22),
